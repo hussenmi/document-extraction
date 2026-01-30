@@ -1,0 +1,329 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>PDF PII Scanner</title>
+    <style>
+        * {
+            box-sizing: border-box;
+        }
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            max-width: 900px;
+            margin: 0 auto;
+            padding: 20px;
+            background: #f5f5f5;
+        }
+        h1 {
+            color: #333;
+        }
+        .upload-section {
+            background: white;
+            padding: 30px;
+            border-radius: 8px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+            margin-bottom: 20px;
+        }
+        .upload-area {
+            border: 2px dashed #ccc;
+            padding: 40px;
+            text-align: center;
+            border-radius: 8px;
+            cursor: pointer;
+            transition: border-color 0.3s;
+        }
+        .upload-area:hover {
+            border-color: #007bff;
+        }
+        .upload-area.dragover {
+            border-color: #007bff;
+            background: #f0f7ff;
+        }
+        input[type="file"] {
+            display: none;
+        }
+        .btn {
+            background: #007bff;
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 16px;
+        }
+        .btn:hover {
+            background: #0056b3;
+        }
+        .btn:disabled {
+            background: #ccc;
+            cursor: not-allowed;
+        }
+        .results {
+            background: white;
+            padding: 20px;
+            border-radius: 8px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+            margin-top: 20px;
+            display: none;
+        }
+        .results.show {
+            display: block;
+        }
+        .pii-warning {
+            background: #fff3cd;
+            border: 1px solid #ffc107;
+            padding: 15px;
+            border-radius: 4px;
+            margin-bottom: 15px;
+        }
+        .pii-safe {
+            background: #d4edda;
+            border: 1px solid #28a745;
+            padding: 15px;
+            border-radius: 4px;
+            margin-bottom: 15px;
+        }
+        .pii-list {
+            background: #f8f9fa;
+            padding: 10px 15px;
+            border-radius: 4px;
+            margin: 10px 0;
+        }
+        .pii-list h4 {
+            margin: 0 0 10px 0;
+            color: #666;
+        }
+        .pii-list ul {
+            margin: 0;
+            padding-left: 20px;
+        }
+        .text-preview {
+            background: #f8f9fa;
+            padding: 15px;
+            border-radius: 4px;
+            max-height: 300px;
+            overflow-y: auto;
+            white-space: pre-wrap;
+            font-family: monospace;
+            font-size: 13px;
+        }
+        .documents-section {
+            background: white;
+            padding: 20px;
+            border-radius: 8px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+            margin-top: 20px;
+        }
+        .document-item {
+            border-bottom: 1px solid #eee;
+            padding: 15px 0;
+        }
+        .document-item:last-child {
+            border-bottom: none;
+        }
+        .document-item h4 {
+            margin: 0 0 5px 0;
+        }
+        .document-item small {
+            color: #666;
+        }
+        .loading {
+            display: none;
+            text-align: center;
+            padding: 20px;
+        }
+        .loading.show {
+            display: block;
+        }
+        .spinner {
+            border: 3px solid #f3f3f3;
+            border-top: 3px solid #007bff;
+            border-radius: 50%;
+            width: 30px;
+            height: 30px;
+            animation: spin 1s linear infinite;
+            margin: 0 auto;
+        }
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+        .tag {
+            display: inline-block;
+            padding: 2px 8px;
+            border-radius: 12px;
+            font-size: 12px;
+            margin-left: 10px;
+        }
+        .tag-warning {
+            background: #fff3cd;
+            color: #856404;
+        }
+        .tag-safe {
+            background: #d4edda;
+            color: #155724;
+        }
+    </style>
+</head>
+<body>
+    <h1>PDF PII Scanner</h1>
+
+    <div class="upload-section">
+        <div class="upload-area" id="dropZone">
+            <p>Drag & drop a PDF file here, or click to select</p>
+            <input type="file" id="fileInput" accept=".pdf">
+            <button class="btn" onclick="document.getElementById('fileInput').click()">Select PDF</button>
+        </div>
+        <div class="loading" id="loading">
+            <div class="spinner"></div>
+            <p>Processing PDF...</p>
+        </div>
+    </div>
+
+    <div class="results" id="results">
+        <h2>Scan Results</h2>
+        <div id="piiStatus"></div>
+        <div id="piiDetails"></div>
+        <h3>Extracted Text</h3>
+        <div class="text-preview" id="extractedText"></div>
+    </div>
+
+    <div class="documents-section">
+        <h2>Previously Scanned Documents</h2>
+        <div id="documentsList">
+            <p>No documents scanned yet.</p>
+        </div>
+    </div>
+
+    <script>
+        const dropZone = document.getElementById('dropZone');
+        const fileInput = document.getElementById('fileInput');
+        const loading = document.getElementById('loading');
+        const results = document.getElementById('results');
+
+        // Drag and drop handlers
+        dropZone.addEventListener('dragover', (e) => {
+            e.preventDefault();
+            dropZone.classList.add('dragover');
+        });
+
+        dropZone.addEventListener('dragleave', () => {
+            dropZone.classList.remove('dragover');
+        });
+
+        dropZone.addEventListener('drop', (e) => {
+            e.preventDefault();
+            dropZone.classList.remove('dragover');
+            const file = e.dataTransfer.files[0];
+            if (file && file.type === 'application/pdf') {
+                uploadFile(file);
+            } else {
+                alert('Please upload a PDF file.');
+            }
+        });
+
+        fileInput.addEventListener('change', (e) => {
+            const file = e.target.files[0];
+            if (file) {
+                uploadFile(file);
+            }
+        });
+
+        async function uploadFile(file) {
+            loading.classList.add('show');
+            results.classList.remove('show');
+
+            const formData = new FormData();
+            formData.append('file', file);
+
+            try {
+                const response = await fetch('/upload', {
+                    method: 'POST',
+                    body: formData
+                });
+
+                if (!response.ok) {
+                    throw new Error('Upload failed');
+                }
+
+                const data = await response.json();
+                displayResults(data);
+                loadDocuments();
+            } catch (error) {
+                alert('Error uploading file: ' + error.message);
+            } finally {
+                loading.classList.remove('show');
+                fileInput.value = '';
+            }
+        }
+
+        function displayResults(data) {
+            const piiStatus = document.getElementById('piiStatus');
+            const piiDetails = document.getElementById('piiDetails');
+            const extractedText = document.getElementById('extractedText');
+
+            if (data.pii_found) {
+                piiStatus.innerHTML = '<div class="pii-warning"><strong>PII Detected!</strong> This document contains personally identifiable information.</div>';
+
+                let detailsHtml = '';
+                if (data.emails_found.length > 0) {
+                    detailsHtml += `<div class="pii-list"><h4>Emails Found (${data.emails_found.length})</h4><ul>`;
+                    data.emails_found.forEach(email => {
+                        detailsHtml += `<li>${email}</li>`;
+                    });
+                    detailsHtml += '</ul></div>';
+                }
+                if (data.phone_numbers_found.length > 0) {
+                    detailsHtml += `<div class="pii-list"><h4>Phone Numbers Found (${data.phone_numbers_found.length})</h4><ul>`;
+                    data.phone_numbers_found.forEach(phone => {
+                        detailsHtml += `<li>${phone}</li>`;
+                    });
+                    detailsHtml += '</ul></div>';
+                }
+                piiDetails.innerHTML = detailsHtml;
+            } else {
+                piiStatus.innerHTML = '<div class="pii-safe"><strong>No PII Detected</strong> This document appears to be clean.</div>';
+                piiDetails.innerHTML = '';
+            }
+
+            extractedText.textContent = data.extracted_text || 'No text extracted.';
+            results.classList.add('show');
+        }
+
+        async function loadDocuments() {
+            try {
+                const response = await fetch('/documents');
+                const documents = await response.json();
+
+                const container = document.getElementById('documentsList');
+
+                if (documents.length === 0) {
+                    container.innerHTML = '<p>No documents scanned yet.</p>';
+                    return;
+                }
+
+                let html = '';
+                documents.reverse().forEach(doc => {
+                    const date = new Date(doc.created_at).toLocaleString();
+                    const tag = doc.pii_found
+                        ? '<span class="tag tag-warning">PII Found</span>'
+                        : '<span class="tag tag-safe">Clean</span>';
+                    html += `
+                        <div class="document-item">
+                            <h4>${doc.filename}${tag}</h4>
+                            <small>Scanned: ${date}</small>
+                        </div>
+                    `;
+                });
+                container.innerHTML = html;
+            } catch (error) {
+                console.error('Error loading documents:', error);
+            }
+        }
+
+        // Load documents on page load
+        loadDocuments();
+    </script>
+</body>
+</html>

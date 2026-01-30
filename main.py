@@ -1,8 +1,11 @@
 import re
 from io import BytesIO
+from pathlib import Path
 from typing import List
 
-from fastapi import FastAPI, UploadFile, File, HTTPException, Depends
+from fastapi import FastAPI, UploadFile, File, HTTPException, Depends, Request
+from fastapi.responses import HTMLResponse
+from fastapi.templating import Jinja2Templates
 from PyPDF2 import PdfReader
 from sqlalchemy.orm import Session
 
@@ -12,6 +15,8 @@ from models import DocumentMetadataResponse
 Base.metadata.create_all(bind=engine)
 
 app = FastAPI(title="FastAPI App", version="1.0.0")
+
+templates = Jinja2Templates(directory=Path(__file__).parent / "templates")
 
 
 def extract_text_from_pdf(file_content: bytes) -> str:
@@ -37,9 +42,9 @@ def detect_pii(text: str) -> dict:
     }
 
 
-@app.get("/")
-def root():
-    return {"message": "Welcome to FastAPI"}
+@app.get("/", response_class=HTMLResponse)
+def root(request: Request):
+    return templates.TemplateResponse("index.html", {"request": request})
 
 
 @app.get("/health")

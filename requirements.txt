@@ -4,3 +4,4 @@ pydantic
 sqlalchemy
 python-multipart
 PyPDF2
+jinja2
