@@ -3,27 +3,50 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>PDF PII Scanner</title>
+    <title>PDF Document Manager</title>
     <style>
         * {
             box-sizing: border-box;
         }
         body {
             font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
-            max-width: 900px;
+            max-width: 1100px;
             margin: 0 auto;
             padding: 20px;
             background: #f5f5f5;
         }
-        h1 {
+        h1, h2, h3 {
             color: #333;
+            margin-top: 0;
         }
-        .upload-section {
+        .card {
             background: white;
-            padding: 30px;
+            padding: 20px;
             border-radius: 8px;
             box-shadow: 0 2px 4px rgba(0,0,0,0.1);
             margin-bottom: 20px;
+        }
+        .stats-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+            gap: 15px;
+            margin-bottom: 20px;
+        }
+        .stat-card {
+            background: white;
+            padding: 20px;
+            border-radius: 8px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+            text-align: center;
+        }
+        .stat-card .number {
+            font-size: 2em;
+            font-weight: bold;
+            color: #007bff;
+        }
+        .stat-card .label {
+            color: #666;
+            font-size: 0.9em;
         }
         .upload-area {
             border: 2px dashed #ccc;
@@ -50,21 +73,54 @@
             padding: 10px 20px;
             border-radius: 4px;
             cursor: pointer;
-            font-size: 16px;
+            font-size: 14px;
         }
         .btn:hover {
             background: #0056b3;
+        }
+        .btn-secondary {
+            background: #6c757d;
+        }
+        .btn-secondary:hover {
+            background: #545b62;
+        }
+        .btn-danger {
+            background: #dc3545;
+        }
+        .btn-danger:hover {
+            background: #c82333;
         }
         .btn:disabled {
             background: #ccc;
             cursor: not-allowed;
         }
+        .search-section {
+            display: flex;
+            gap: 10px;
+            margin-bottom: 15px;
+            flex-wrap: wrap;
+        }
+        .search-section input[type="text"] {
+            flex: 1;
+            min-width: 200px;
+            padding: 10px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            font-size: 14px;
+        }
+        .filter-section {
+            display: flex;
+            gap: 10px;
+            margin-bottom: 15px;
+            flex-wrap: wrap;
+            align-items: center;
+        }
+        .filter-section select {
+            padding: 8px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+        }
         .results {
-            background: white;
-            padding: 20px;
-            border-radius: 8px;
-            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
-            margin-top: 20px;
             display: none;
         }
         .results.show {
@@ -84,19 +140,46 @@
             border-radius: 4px;
             margin-bottom: 15px;
         }
-        .pii-list {
+        .metadata-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 15px;
+            margin-bottom: 15px;
+        }
+        .metadata-item {
             background: #f8f9fa;
-            padding: 10px 15px;
+            padding: 12px;
+            border-radius: 4px;
+        }
+        .metadata-item .label {
+            font-size: 0.8em;
+            color: #666;
+            text-transform: uppercase;
+        }
+        .metadata-item .value {
+            font-weight: 500;
+            margin-top: 4px;
+        }
+        .entity-section {
+            background: #f8f9fa;
+            padding: 15px;
             border-radius: 4px;
             margin: 10px 0;
         }
-        .pii-list h4 {
+        .entity-section h4 {
             margin: 0 0 10px 0;
             color: #666;
         }
-        .pii-list ul {
-            margin: 0;
-            padding-left: 20px;
+        .entity-list {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 8px;
+        }
+        .entity-tag {
+            background: #e9ecef;
+            padding: 4px 10px;
+            border-radius: 12px;
+            font-size: 0.9em;
         }
         .text-preview {
             background: #f8f9fa;
@@ -108,25 +191,40 @@
             font-family: monospace;
             font-size: 13px;
         }
-        .documents-section {
-            background: white;
-            padding: 20px;
-            border-radius: 8px;
-            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
-            margin-top: 20px;
-        }
         .document-item {
             border-bottom: 1px solid #eee;
             padding: 15px 0;
+            display: flex;
+            justify-content: space-between;
+            align-items: flex-start;
         }
         .document-item:last-child {
             border-bottom: none;
         }
-        .document-item h4 {
-            margin: 0 0 5px 0;
+        .document-info {
+            flex: 1;
         }
-        .document-item small {
+        .document-info h4 {
+            margin: 0 0 5px 0;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+        .document-meta {
+            font-size: 0.85em;
             color: #666;
+            display: flex;
+            flex-wrap: wrap;
+            gap: 15px;
+            margin-top: 5px;
+        }
+        .document-actions {
+            display: flex;
+            gap: 8px;
+        }
+        .btn-sm {
+            padding: 5px 10px;
+            font-size: 12px;
         }
         .loading {
             display: none;
@@ -154,7 +252,6 @@
             padding: 2px 8px;
             border-radius: 12px;
             font-size: 12px;
-            margin-left: 10px;
         }
         .tag-warning {
             background: #fff3cd;
@@ -164,12 +261,80 @@
             background: #d4edda;
             color: #155724;
         }
+        .modal {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0,0,0,0.5);
+            z-index: 1000;
+        }
+        .modal.show {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+        .modal-content {
+            background: white;
+            padding: 25px;
+            border-radius: 8px;
+            max-width: 800px;
+            max-height: 80vh;
+            overflow-y: auto;
+            width: 90%;
+        }
+        .modal-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 20px;
+        }
+        .modal-close {
+            background: none;
+            border: none;
+            font-size: 24px;
+            cursor: pointer;
+            color: #666;
+        }
+        .empty-state {
+            text-align: center;
+            padding: 40px;
+            color: #666;
+        }
     </style>
 </head>
 <body>
-    <h1>PDF PII Scanner</h1>
+    <h1>PDF Document Manager</h1>
 
-    <div class="upload-section">
+    <!-- Stats Section -->
+    <div class="stats-grid" id="statsGrid">
+        <div class="stat-card">
+            <div class="number" id="totalDocs">0</div>
+            <div class="label">Total Documents</div>
+        </div>
+        <div class="stat-card">
+            <div class="number" id="piiDocs">0</div>
+            <div class="label">With PII</div>
+        </div>
+        <div class="stat-card">
+            <div class="number" id="totalEmails">0</div>
+            <div class="label">Emails Found</div>
+        </div>
+        <div class="stat-card">
+            <div class="number" id="totalPhones">0</div>
+            <div class="label">Phone Numbers</div>
+        </div>
+        <div class="stat-card">
+            <div class="number" id="totalPages">0</div>
+            <div class="label">Pages Processed</div>
+        </div>
+    </div>
+
+    <!-- Upload Section -->
+    <div class="card">
+        <h2>Upload Document</h2>
         <div class="upload-area" id="dropZone">
             <p>Drag & drop a PDF file here, or click to select</p>
             <input type="file" id="fileInput" accept=".pdf">
@@ -181,18 +346,44 @@
         </div>
     </div>
 
-    <div class="results" id="results">
-        <h2>Scan Results</h2>
-        <div id="piiStatus"></div>
-        <div id="piiDetails"></div>
-        <h3>Extracted Text</h3>
-        <div class="text-preview" id="extractedText"></div>
+    <!-- Results Section -->
+    <div class="card results" id="results">
+        <h2>Processing Results</h2>
+        <div id="resultsContent"></div>
     </div>
 
-    <div class="documents-section">
-        <h2>Previously Scanned Documents</h2>
+    <!-- Documents Section -->
+    <div class="card">
+        <h2>Documents</h2>
+
+        <div class="search-section">
+            <input type="text" id="searchInput" placeholder="Search documents...">
+            <button class="btn" onclick="searchDocuments()">Search</button>
+            <button class="btn btn-secondary" onclick="clearSearch()">Clear</button>
+        </div>
+
+        <div class="filter-section">
+            <label>Filter:</label>
+            <select id="piiFilter" onchange="loadDocuments()">
+                <option value="">All Documents</option>
+                <option value="true">With PII</option>
+                <option value="false">Without PII</option>
+            </select>
+        </div>
+
         <div id="documentsList">
-            <p>No documents scanned yet.</p>
+            <div class="empty-state">No documents yet. Upload a PDF to get started.</div>
+        </div>
+    </div>
+
+    <!-- Document Detail Modal -->
+    <div class="modal" id="documentModal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h2 id="modalTitle">Document Details</h2>
+                <button class="modal-close" onclick="closeModal()">&times;</button>
+            </div>
+            <div id="modalContent"></div>
         </div>
     </div>
 
@@ -202,7 +393,11 @@
         const loading = document.getElementById('loading');
         const results = document.getElementById('results');
 
-        // Drag and drop handlers
+        // Initialize
+        loadStats();
+        loadDocuments();
+
+        // Drag and drop
         dropZone.addEventListener('dragover', (e) => {
             e.preventDefault();
             dropZone.classList.add('dragover');
@@ -225,10 +420,27 @@
 
         fileInput.addEventListener('change', (e) => {
             const file = e.target.files[0];
-            if (file) {
-                uploadFile(file);
-            }
+            if (file) uploadFile(file);
         });
+
+        // Search on Enter
+        document.getElementById('searchInput').addEventListener('keypress', (e) => {
+            if (e.key === 'Enter') searchDocuments();
+        });
+
+        async function loadStats() {
+            try {
+                const response = await fetch('/stats');
+                const stats = await response.json();
+                document.getElementById('totalDocs').textContent = stats.total_documents;
+                document.getElementById('piiDocs').textContent = stats.documents_with_pii;
+                document.getElementById('totalEmails').textContent = stats.total_emails_found;
+                document.getElementById('totalPhones').textContent = stats.total_phone_numbers_found;
+                document.getElementById('totalPages').textContent = stats.total_pages_processed;
+            } catch (error) {
+                console.error('Error loading stats:', error);
+            }
+        }
 
         async function uploadFile(file) {
             loading.classList.add('show');
@@ -243,12 +455,11 @@
                     body: formData
                 });
 
-                if (!response.ok) {
-                    throw new Error('Upload failed');
-                }
+                if (!response.ok) throw new Error('Upload failed');
 
                 const data = await response.json();
                 displayResults(data);
+                loadStats();
                 loadDocuments();
             } catch (error) {
                 alert('Error uploading file: ' + error.message);
@@ -259,71 +470,218 @@
         }
 
         function displayResults(data) {
-            const piiStatus = document.getElementById('piiStatus');
-            const piiDetails = document.getElementById('piiDetails');
-            const extractedText = document.getElementById('extractedText');
+            let html = '';
 
+            // PII Status
             if (data.pii_found) {
-                piiStatus.innerHTML = '<div class="pii-warning"><strong>PII Detected!</strong> This document contains personally identifiable information.</div>';
-
-                let detailsHtml = '';
-                if (data.emails_found.length > 0) {
-                    detailsHtml += `<div class="pii-list"><h4>Emails Found (${data.emails_found.length})</h4><ul>`;
-                    data.emails_found.forEach(email => {
-                        detailsHtml += `<li>${email}</li>`;
-                    });
-                    detailsHtml += '</ul></div>';
-                }
-                if (data.phone_numbers_found.length > 0) {
-                    detailsHtml += `<div class="pii-list"><h4>Phone Numbers Found (${data.phone_numbers_found.length})</h4><ul>`;
-                    data.phone_numbers_found.forEach(phone => {
-                        detailsHtml += `<li>${phone}</li>`;
-                    });
-                    detailsHtml += '</ul></div>';
-                }
-                piiDetails.innerHTML = detailsHtml;
+                html += '<div class="pii-warning"><strong>PII Detected!</strong> This document contains personally identifiable information.</div>';
             } else {
-                piiStatus.innerHTML = '<div class="pii-safe"><strong>No PII Detected</strong> This document appears to be clean.</div>';
-                piiDetails.innerHTML = '';
+                html += '<div class="pii-safe"><strong>No PII Detected</strong> This document appears to be clean.</div>';
             }
 
-            extractedText.textContent = data.extracted_text || 'No text extracted.';
+            // Metadata Grid
+            html += '<div class="metadata-grid">';
+            html += `<div class="metadata-item"><div class="label">Filename</div><div class="value">${data.filename}</div></div>`;
+            if (data.title) html += `<div class="metadata-item"><div class="label">Title</div><div class="value">${data.title}</div></div>`;
+            if (data.author) html += `<div class="metadata-item"><div class="label">Author</div><div class="value">${data.author}</div></div>`;
+            html += `<div class="metadata-item"><div class="label">Pages</div><div class="value">${data.page_count}</div></div>`;
+            html += `<div class="metadata-item"><div class="label">Words</div><div class="value">${data.word_count.toLocaleString()}</div></div>`;
+            html += `<div class="metadata-item"><div class="label">Characters</div><div class="value">${data.char_count.toLocaleString()}</div></div>`;
+            html += `<div class="metadata-item"><div class="label">File Size</div><div class="value">${formatBytes(data.file_size)}</div></div>`;
+            html += '</div>';
+
+            // Entities
+            if (data.emails_found.length > 0) {
+                html += '<div class="entity-section"><h4>Emails Found</h4><div class="entity-list">';
+                data.emails_found.forEach(e => html += `<span class="entity-tag">${e}</span>`);
+                html += '</div></div>';
+            }
+
+            if (data.phone_numbers_found.length > 0) {
+                html += '<div class="entity-section"><h4>Phone Numbers Found</h4><div class="entity-list">';
+                data.phone_numbers_found.forEach(p => html += `<span class="entity-tag">${p}</span>`);
+                html += '</div></div>';
+            }
+
+            if (data.urls_found.length > 0) {
+                html += '<div class="entity-section"><h4>URLs Found</h4><div class="entity-list">';
+                data.urls_found.forEach(u => html += `<span class="entity-tag">${u}</span>`);
+                html += '</div></div>';
+            }
+
+            if (data.dates_found.length > 0) {
+                html += '<div class="entity-section"><h4>Dates Found</h4><div class="entity-list">';
+                data.dates_found.forEach(d => html += `<span class="entity-tag">${d}</span>`);
+                html += '</div></div>';
+            }
+
+            document.getElementById('resultsContent').innerHTML = html;
             results.classList.add('show');
         }
 
         async function loadDocuments() {
+            const piiFilter = document.getElementById('piiFilter').value;
+            let url = '/documents?limit=100';
+            if (piiFilter) url += `&pii_found=${piiFilter}`;
+
             try {
-                const response = await fetch('/documents');
-                const documents = await response.json();
-
-                const container = document.getElementById('documentsList');
-
-                if (documents.length === 0) {
-                    container.innerHTML = '<p>No documents scanned yet.</p>';
-                    return;
-                }
-
-                let html = '';
-                documents.reverse().forEach(doc => {
-                    const date = new Date(doc.created_at).toLocaleString();
-                    const tag = doc.pii_found
-                        ? '<span class="tag tag-warning">PII Found</span>'
-                        : '<span class="tag tag-safe">Clean</span>';
-                    html += `
-                        <div class="document-item">
-                            <h4>${doc.filename}${tag}</h4>
-                            <small>Scanned: ${date}</small>
-                        </div>
-                    `;
-                });
-                container.innerHTML = html;
+                const response = await fetch(url);
+                const data = await response.json();
+                renderDocuments(data.documents, data.total);
             } catch (error) {
                 console.error('Error loading documents:', error);
             }
         }
 
-        // Load documents on page load
-        loadDocuments();
+        async function searchDocuments() {
+            const query = document.getElementById('searchInput').value.trim();
+            if (!query) {
+                loadDocuments();
+                return;
+            }
+
+            try {
+                const response = await fetch(`/documents/search?q=${encodeURIComponent(query)}`);
+                const data = await response.json();
+                renderDocuments(data.documents, data.total, query);
+            } catch (error) {
+                console.error('Error searching:', error);
+            }
+        }
+
+        function clearSearch() {
+            document.getElementById('searchInput').value = '';
+            document.getElementById('piiFilter').value = '';
+            loadDocuments();
+        }
+
+        function renderDocuments(documents, total, query = null) {
+            const container = document.getElementById('documentsList');
+
+            if (documents.length === 0) {
+                container.innerHTML = '<div class="empty-state">No documents found.</div>';
+                return;
+            }
+
+            let html = query ? `<p>Found ${total} result(s) for "${query}"</p>` : `<p>${total} document(s)</p>`;
+
+            documents.forEach(doc => {
+                const date = new Date(doc.created_at).toLocaleString();
+                const tag = doc.pii_found
+                    ? '<span class="tag tag-warning">PII Found</span>'
+                    : '<span class="tag tag-safe">Clean</span>';
+
+                html += `
+                    <div class="document-item">
+                        <div class="document-info">
+                            <h4>${doc.filename} ${tag}</h4>
+                            <div class="document-meta">
+                                ${doc.title ? `<span>Title: ${doc.title}</span>` : ''}
+                                ${doc.author ? `<span>Author: ${doc.author}</span>` : ''}
+                                <span>${doc.page_count} pages</span>
+                                <span>${doc.word_count.toLocaleString()} words</span>
+                                <span>${formatBytes(doc.file_size)}</span>
+                                ${doc.emails_count > 0 ? `<span>${doc.emails_count} emails</span>` : ''}
+                                ${doc.phones_count > 0 ? `<span>${doc.phones_count} phones</span>` : ''}
+                            </div>
+                            <small>Uploaded: ${date}</small>
+                        </div>
+                        <div class="document-actions">
+                            <button class="btn btn-sm" onclick="viewDocument(${doc.id})">View</button>
+                            <button class="btn btn-sm btn-danger" onclick="deleteDocument(${doc.id})">Delete</button>
+                        </div>
+                    </div>
+                `;
+            });
+
+            container.innerHTML = html;
+        }
+
+        async function viewDocument(id) {
+            try {
+                const response = await fetch(`/documents/${id}`);
+                if (!response.ok) throw new Error('Document not found');
+                const doc = await response.json();
+
+                document.getElementById('modalTitle').textContent = doc.filename;
+
+                let html = '<div class="metadata-grid">';
+                if (doc.title) html += `<div class="metadata-item"><div class="label">Title</div><div class="value">${doc.title}</div></div>`;
+                if (doc.author) html += `<div class="metadata-item"><div class="label">Author</div><div class="value">${doc.author}</div></div>`;
+                html += `<div class="metadata-item"><div class="label">Pages</div><div class="value">${doc.page_count}</div></div>`;
+                html += `<div class="metadata-item"><div class="label">Words</div><div class="value">${doc.word_count.toLocaleString()}</div></div>`;
+                html += `<div class="metadata-item"><div class="label">File Size</div><div class="value">${formatBytes(doc.file_size)}</div></div>`;
+                html += `<div class="metadata-item"><div class="label">PII Status</div><div class="value">${doc.pii_found ? 'Found' : 'Clean'}</div></div>`;
+                html += '</div>';
+
+                if (doc.emails_found.length > 0) {
+                    html += '<div class="entity-section"><h4>Emails</h4><div class="entity-list">';
+                    doc.emails_found.forEach(e => html += `<span class="entity-tag">${e}</span>`);
+                    html += '</div></div>';
+                }
+
+                if (doc.phone_numbers_found.length > 0) {
+                    html += '<div class="entity-section"><h4>Phone Numbers</h4><div class="entity-list">';
+                    doc.phone_numbers_found.forEach(p => html += `<span class="entity-tag">${p}</span>`);
+                    html += '</div></div>';
+                }
+
+                if (doc.urls_found.length > 0) {
+                    html += '<div class="entity-section"><h4>URLs</h4><div class="entity-list">';
+                    doc.urls_found.forEach(u => html += `<span class="entity-tag">${u}</span>`);
+                    html += '</div></div>';
+                }
+
+                if (doc.dates_found.length > 0) {
+                    html += '<div class="entity-section"><h4>Dates</h4><div class="entity-list">';
+                    doc.dates_found.forEach(d => html += `<span class="entity-tag">${d}</span>`);
+                    html += '</div></div>';
+                }
+
+                html += '<h3>Extracted Text</h3>';
+                html += `<div class="text-preview">${doc.extracted_text || 'No text extracted.'}</div>`;
+
+                document.getElementById('modalContent').innerHTML = html;
+                document.getElementById('documentModal').classList.add('show');
+            } catch (error) {
+                alert('Error loading document: ' + error.message);
+            }
+        }
+
+        function closeModal() {
+            document.getElementById('documentModal').classList.remove('show');
+        }
+
+        async function deleteDocument(id) {
+            if (!confirm('Are you sure you want to delete this document?')) return;
+
+            try {
+                const response = await fetch(`/documents/${id}`, { method: 'DELETE' });
+                if (!response.ok) throw new Error('Delete failed');
+                loadStats();
+                loadDocuments();
+            } catch (error) {
+                alert('Error deleting document: ' + error.message);
+            }
+        }
+
+        function formatBytes(bytes) {
+            if (bytes === 0) return '0 B';
+            const k = 1024;
+            const sizes = ['B', 'KB', 'MB', 'GB'];
+            const i = Math.floor(Math.log(bytes) / Math.log(k));
+            return parseFloat((bytes / Math.pow(k, i)).toFixed(1)) + ' ' + sizes[i];
+        }
+
+        // Close modal on outside click
+        document.getElementById('documentModal').addEventListener('click', (e) => {
+            if (e.target.id === 'documentModal') closeModal();
+        });
+
+        // Close modal on Escape
+        document.addEventListener('keydown', (e) => {
+            if (e.key === 'Escape') closeModal();
+        });
     </script>
 </body>
 </html>
